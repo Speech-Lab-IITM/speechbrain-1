@@ -27,6 +27,8 @@ from speechbrain.utils.distributed import run_on_main
 from hyperpyyaml import load_hyperpyyaml
 from pathlib import Path
 import numpy as np
+from speechbrain.nnet.schedulers import NewBobScheduler
+from speechbrain.nnet.schedulers import NoamScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -137,8 +139,9 @@ class ASR(sb.Brain):
 
         # Perform end-of-iteration things, like annealing, logging, etc.
         if stage == sb.Stage.VALID:
+            scheduler_arg = self.model_optimizer if isinstance(self.hparams.lr_annealing_model, NoamScheduler) else stage_stats["loss"]
             old_lr_model, new_lr_model = self.hparams.lr_annealing_model(
-                stage_stats["loss"]
+                scheduler_arg
             )
             sb.nnet.schedulers.update_learning_rate(
                 self.model_optimizer, new_lr_model
@@ -335,11 +338,13 @@ if __name__ == "__main__":
         valid_loader_kwargs=hparams["valid_dataloader_opts"],
     )
 
+    print('Evaluating Test Data...')
     # Testing
     for k in test_datasets.keys():  # keys are test_clean, test_other etc
         asr_brain.hparams.wer_file = os.path.join(
             hparams["output_folder"], "wer_{}.txt".format(k)
         )
         asr_brain.evaluate(
-            test_datasets[k], test_loader_kwargs=hparams["test_dataloader_opts"]
+            test_datasets[k], test_loader_kwargs=hparams["test_dataloader_opts"],
+            min_key="WER"
         )

@@ -16,14 +16,14 @@ train_log: !ref <output_folder>/train_log.txt
 wav2vec2_hub: facebook/wav2vec2-large-960h-lv60-self
 
 # Data files
-data_folder: !PLACEHOLDER # e,g./path/to/LibriSpeech
+data_folder: /speech/Database/LibrispeechR # e,g./path/to/LibriSpeech
 # noise/ris dataset will automatically be downloaded
 data_folder_rirs: !ref <data_folder>
-train_splits: ["train-clean-100", "train-clean-360", "train-other-500"]
+train_splits: ["train-clean-100"]
 dev_splits: ["dev-clean"]
 test_splits: ["test-clean", "test-other"]
 skip_prep: False
-ckpt_interval_minutes: 25 # save checkpoint every N min
+ckpt_interval_minutes: 30 # save checkpoint every N min
 train_csv: !ref <output_folder>/train.csv
 valid_csv: !ref <output_folder>/dev-clean.csv
 test_csv:
@@ -31,7 +31,7 @@ test_csv:
    - !ref <output_folder>/test-other.csv
 
 # Training parameters
-number_of_epochs: 1
+number_of_epochs: 10
 lr: 0.9
 lr_wav2vec: 0.0001
 sorting: ascending
