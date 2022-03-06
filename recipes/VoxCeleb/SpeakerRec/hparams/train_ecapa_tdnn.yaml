@@ -6,7 +6,8 @@
 # Basic parameters
 seed: 1986
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
-output_folder: !ref results/ecapa_augment/<seed>
+tag: tag
+output_folder: !ref results/ecapa_ensemble_<tag>/<seed>
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
 
