@@ -14,18 +14,20 @@ save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
 
 # URL for the biggest Fairseq english wav2vec2 model.
-wav2vec2_hub: facebook/wav2vec2-base-960h  # 768
+wav2vec2_hub: facebook/wav2vec2-base  # 768
 hubert_hub: facebook/hubert-base-ls960  # 768
 wavlm_hub: microsoft/wavlm-base # 768
+avg: False
+grad_accumulation_factor: 2
 
 # Data files
-# data_folder: /speech/Database/Librispeech # e,g./path/to/LibriSpeech
-data_folder: /speech/arun/librispeech_finetuning
+data_folder: /speech/Database/Librispeech # e,g./path/to/LibriSpeech
+# data_folder: /speech/arun/librispeech_finetuning
 # noise/ris dataset will automatically be downloaded
 data_folder_rirs: !ref <data_folder>
 # train_splits: ["train-clean-100", "train-clean-360", "train-other-500"]
-# train_splits: ["train-clean-100"]
-train_splits: ["10m_0"]
+train_splits: ["train-clean-100"]
+# train_splits: ["1h", "9h"]
 dev_splits: ["dev-clean"]
 test_splits: ["test-clean", "test-other"]
 skip_prep: False
@@ -37,7 +39,7 @@ test_csv:
    - !ref <output_folder>/test-other.csv
 
 # Training parameters
-number_of_epochs: 50
+number_of_epochs: 100
 lr: 0.9
 sorting: ascending
 auto_mix_prec: False
@@ -47,8 +49,8 @@ sample_rate: 16000
 # With data_parallel batch_size is split into N jobs
 # With DDP batch_size is multiplied by N jobs
 # Must be 3 per GPU to fit 32GB of VRAM
-batch_size: 8
-test_batch_size: 8
+batch_size: 32
+test_batch_size: 32
 
 # Dataloader options
 train_dataloader_opts:
@@ -61,9 +63,6 @@ test_dataloader_opts:
    batch_size: !ref <test_batch_size>
 
 # Model parameters
-activation: !name:torch.nn.LeakyReLU
-dnn_layers: 2
-dnn_neurons: 1024
 freeze_wav2vec: True
 
 # Outputs
@@ -84,11 +83,21 @@ augmentation: !new:speechbrain.lobes.augment.TimeDomainSpecAugment
    sample_rate: !ref <sample_rate>
    speeds: [95, 100, 105]
 
-enc: !new:speechbrain.lobes.models.VanillaNN.VanillaNN
-   input_shape: [null, null, 1024]
-   activation: !ref <activation>
-   dnn_blocks: !ref <dnn_layers>
-   dnn_neurons: !ref <dnn_neurons>
+d_model: 1024
+Transformer: !new:speechbrain.lobes.models.transformer.TransformerASR.TransformerASR # yamllint disable-line rule:line-length
+    input_size: 2304
+    tgt_vocab: !ref <output_neurons>
+    d_model: !ref <d_model>
+    nhead: 8
+    num_encoder_layers: 2
+    num_decoder_layers: 0
+    d_ffn: 1024
+    dropout: 0.1
+    activation: !name:torch.nn.GELU
+    normalize_before: False
+
+enc: !new:speechbrain.lobes.models.transformer.TransformerASR.EncoderWrapper
+   transformer: !ref <Transformer>
 
 wav2vec2: !new:speechbrain.lobes.models.huggingface_wav2vec.HuggingFaceWav2Vec2
    source: !ref <wav2vec2_hub>
@@ -123,7 +132,7 @@ wavlm: !new:speechbrain.lobes.models.huggingface_wav2vec.HuggingFaceWav2Vec2
 
 ctc_lin: !new:speechbrain.nnet.linear.Linear
    # input_size: !ref <dnn_neurons>
-   input_size: 1536  # after concatenating all three features
+   input_size: 1024  # after concatenating or averaging all three features
    n_neurons: !ref <output_neurons>
 
 log_softmax: !new:speechbrain.nnet.activations.Softmax
@@ -136,11 +145,11 @@ feature_extractors: !new:torch.nn.ModuleList
    - [!ref <wav2vec2>, !ref <hubert>, !ref <wavlm>]
 modules:
    feature_extractors: !ref <feature_extractors>
-   # enc: !ref <enc>
+   enc: !ref <enc>
    ctc_lin: !ref <ctc_lin>
 
 model: !new:torch.nn.ModuleList
-   - [!ref <ctc_lin>]
+   - [!ref <enc>, !ref <ctc_lin>]
 
 model_opt_class: !name:torch.optim.Adadelta
    lr: !ref <lr>
