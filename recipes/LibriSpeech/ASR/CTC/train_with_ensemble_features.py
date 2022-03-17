@@ -32,7 +32,6 @@ from speechbrain.nnet.schedulers import NoamScheduler
 
 logger = logging.getLogger(__name__)
 
-
 # Define training procedure
 class ASR(sb.Brain):
     def compute_forward(self, batch, stage):
@@ -57,9 +56,13 @@ class ASR(sb.Brain):
         feats = []
         for feature_extractor in self.modules.feature_extractors:
             feats.append(feature_extractor(wavs))
-        # concatenate features
-        x = torch.cat(feats, dim=2)
+        # concatenate or average features
+        if hasattr(self.hparams, "avg") and self.hparams.avg:
+            x = torch.mean(torch.stack(feats), dim=0)
+        else:
+            x = torch.cat(feats, dim=2)
 
+        x = self.modules.enc(x)
         # Compute outputs
         p_tokens = None
         logits = self.modules.ctc_lin(x)
@@ -104,13 +107,15 @@ class ASR(sb.Brain):
 
     def fit_batch(self, batch):
         """Train the parameters given a single batch in input"""
+        should_step = self.step % self.grad_accumulation_factor == 0
         predictions = self.compute_forward(batch, sb.Stage.TRAIN)
         loss = self.compute_objectives(predictions, batch, sb.Stage.TRAIN)
-        loss.backward()
-        if self.check_gradients(loss):
-            self.model_optimizer.step()
-
-        self.model_optimizer.zero_grad()
+        (loss / self.grad_accumulation_factor).backward()
+        if should_step:
+            if self.check_gradients(loss):
+                self.model_optimizer.step()
+            self.model_optimizer.zero_grad()
+            self.optimizer_step += 1
 
         return loss.detach()
 
@@ -329,6 +334,10 @@ if __name__ == "__main__":
     # NB: This tokenizer corresponds to the one used for the LM!!
     asr_brain.tokenizer = label_encoder
 
+    if hasattr(hparams, "avg") and hparams.avg:
+        print('Averaging features')
+    else:
+        print('Concatenating features')
     # Training
     asr_brain.fit(
         asr_brain.hparams.epoch_counter,
