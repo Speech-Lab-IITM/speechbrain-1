@@ -29,6 +29,7 @@ from pathlib import Path
 import numpy as np
 from speechbrain.nnet.schedulers import NewBobScheduler
 from speechbrain.nnet.schedulers import NoamScheduler
+import speechbrain
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,9 @@ class ASR(sb.Brain):
             x = torch.cat(feats, dim=2)
 
         x = self.modules.enc(x)
+        if isinstance(self.modules.enc, speechbrain.nnet.RNN.LSTM):
+            x = x[0]
+        
         # Compute outputs
         p_tokens = None
         logits = self.modules.ctc_lin(x)
@@ -121,8 +125,8 @@ class ASR(sb.Brain):
 
     def evaluate_batch(self, batch, stage):
         """Computations needed for validation/test batches"""
-        predictions = self.compute_forward(batch, stage=stage)
         with torch.no_grad():
+            predictions = self.compute_forward(batch, stage=stage)
             loss = self.compute_objectives(predictions, batch, stage=stage)
         return loss.detach()
 
