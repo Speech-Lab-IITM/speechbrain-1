@@ -8,7 +8,7 @@
 seed: 1986
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
 tag: tag
-output_folder: !ref results/train_wav2vec2base_char_<tag>/<seed>
+output_folder: !ref results/train_wav2vec2base_char_8layers<tag>/<seed>
 wer_file: !ref <output_folder>/wer.txt
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
@@ -18,7 +18,7 @@ wav2vec2_hub: facebook/wav2vec2-base  # 768
 hubert_hub: facebook/hubert-base-ls960  # 768
 wavlm_hub: microsoft/wavlm-base # 768
 avg: False
-grad_accumulation_factor: 2
+grad_accumulation_factor: 4
 
 # Data files
 data_folder: /speech/Database/Librispeech # e,g./path/to/LibriSpeech
@@ -89,7 +89,7 @@ Transformer: !new:speechbrain.lobes.models.transformer.TransformerASR.Transforme
     tgt_vocab: !ref <output_neurons>
     d_model: !ref <d_model>
     nhead: 8
-    num_encoder_layers: 2
+    num_encoder_layers: 8
     num_decoder_layers: 0
     d_ffn: 1024
     dropout: 0.1
