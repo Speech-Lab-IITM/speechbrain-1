@@ -8,15 +8,17 @@
 seed: 1986
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
 tag: tag
-output_folder: !ref results/train_wavlmbase_char_8layers<tag>/<seed>
+output_folder: !ref results/train_ensemblebase_char_bilstm<tag>/<seed>
 wer_file: !ref <output_folder>/wer.txt
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
 
 # URL for the biggest Fairseq english wav2vec2 model.
+wav2vec2_hub: facebook/wav2vec2-base  # 768
+hubert_hub: facebook/hubert-base-ls960  # 768
 wavlm_hub: microsoft/wavlm-base # 768
 avg: False
-grad_accumulation_factor: 4
+grad_accumulation_factor: 2
 
 # Data files
 data_folder: /nlsasfs/home/nltm-pilot/arunk/Database/LibriSpeech/LibriSpeech # e,g./path/to/LibriSpeech
@@ -81,21 +83,28 @@ augmentation: !new:speechbrain.lobes.augment.TimeDomainSpecAugment
    sample_rate: !ref <sample_rate>
    speeds: [95, 100, 105]
 
-d_model: 1024
-Transformer: !new:speechbrain.lobes.models.transformer.TransformerASR.TransformerASR # yamllint disable-line rule:line-length
-    input_size: 768
-    tgt_vocab: !ref <output_neurons>
-    d_model: !ref <d_model>
-    nhead: 8
-    num_encoder_layers: 8
-    num_decoder_layers: 0
-    d_ffn: 1024
-    dropout: 0.1
-    activation: !name:torch.nn.GELU
-    normalize_before: False
+BiLSTM: !new:speechbrain.nnet.RNN.LSTM
+   hidden_size: 1024
+   input_size: 768
+   num_layers: 2
+   bias: True
+   dropout: 0.2
+   re_init: True
+   bidirectional: True
 
-enc: !new:speechbrain.lobes.models.transformer.TransformerASR.EncoderWrapper
-   transformer: !ref <Transformer>
+enc: !ref <BiLSTM>
+
+wav2vec2: !new:speechbrain.lobes.models.huggingface_wav2vec.HuggingFaceWav2Vec2
+   source: !ref <wav2vec2_hub>
+   output_norm: True
+   freeze: !ref <freeze_wav2vec>
+   save_path: pretrained_models/wav2vec2_checkpoint
+
+hubert: !new:speechbrain.lobes.models.huggingface_wav2vec.HuggingFaceWav2Vec2
+   source: !ref <hubert_hub>
+   output_norm: True
+   freeze: !ref <freeze_wav2vec>
+   save_path: pretrained_models/hubert_checkpoint
 
 wavlm: !new:speechbrain.lobes.models.huggingface_wav2vec.HuggingFaceWav2Vec2
    source: !ref <wavlm_hub>
@@ -118,7 +127,7 @@ wavlm: !new:speechbrain.lobes.models.huggingface_wav2vec.HuggingFaceWav2Vec2
 
 ctc_lin: !new:speechbrain.nnet.linear.Linear
    # input_size: !ref <dnn_neurons>
-   input_size: 1024  # after concatenating or averaging all three features
+   input_size: 2048  # after concatenating or averaging all three features
    n_neurons: !ref <output_neurons>
 
 log_softmax: !new:speechbrain.nnet.activations.Softmax
@@ -128,7 +137,7 @@ ctc_cost: !name:speechbrain.nnet.losses.ctc_loss
    blank_index: !ref <blank_index>
 
 feature_extractors: !new:torch.nn.ModuleList
-   - [!ref <wavlm>]
+   - [!ref <wav2vec2>, !ref <hubert>, !ref <wavlm>]
 modules:
    feature_extractors: !ref <feature_extractors>
    enc: !ref <enc>

@@ -21,7 +21,7 @@ avg: False
 grad_accumulation_factor: 4
 
 # Data files
-data_folder: /speech/Database/Librispeech # e,g./path/to/LibriSpeech
+data_folder: /nlsasfs/home/nltm-pilot/arunk/Database/LibriSpeech/LibriSpeech # e,g./path/to/LibriSpeech
 # data_folder: /speech/arun/librispeech_finetuning
 # noise/ris dataset will automatically be downloaded
 data_folder_rirs: !ref <data_folder>
@@ -39,7 +39,7 @@ test_csv:
    - !ref <output_folder>/test-other.csv
 
 # Training parameters
-number_of_epochs: 90
+number_of_epochs: 60
 lr: 0.9
 sorting: ascending
 auto_mix_prec: False

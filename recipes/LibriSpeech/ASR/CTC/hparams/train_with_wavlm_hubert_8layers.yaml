@@ -8,7 +8,7 @@
 seed: 1986
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
 tag: tag
-output_folder: !ref results/train_wavlmbase_char_8layers<tag>/<seed>
+output_folder: !ref results/train_wavlm_hubert_base_char_8layers<tag>/<seed>
 wer_file: !ref <output_folder>/wer.txt
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
@@ -83,7 +83,7 @@ augmentation: !new:speechbrain.lobes.augment.TimeDomainSpecAugment
 
 d_model: 1024
 Transformer: !new:speechbrain.lobes.models.transformer.TransformerASR.TransformerASR # yamllint disable-line rule:line-length
-    input_size: 768
+    input_size: 1536
     tgt_vocab: !ref <output_neurons>
     d_model: !ref <d_model>
     nhead: 8
@@ -103,7 +103,11 @@ wavlm: !new:speechbrain.lobes.models.huggingface_wav2vec.HuggingFaceWav2Vec2
    freeze: !ref <freeze_wav2vec>
    save_path: pretrained_models/wavlm_checkpoint
 
-
+hubert: !new:speechbrain.lobes.models.huggingface_wav2vec.HuggingFaceWav2Vec2
+   source: !ref <hubert_hub>
+   output_norm: True
+   freeze: !ref <freeze_wav2vec>
+   save_path: pretrained_models/hubert_checkpoint
 #####
 # Uncomment this block if you prefer to use a Fairseq pretrained model instead
 # of a HuggingFace one. Here, we provide an URL that is obtained from the
@@ -128,7 +132,7 @@ ctc_cost: !name:speechbrain.nnet.losses.ctc_loss
    blank_index: !ref <blank_index>
 
 feature_extractors: !new:torch.nn.ModuleList
-   - [!ref <wavlm>]
+   - [!ref <wavlm>, !ref <hubert>]
 modules:
    feature_extractors: !ref <feature_extractors>
    enc: !ref <enc>
